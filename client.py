@@ -1,19 +1,18 @@
 import json, requests, datetime, hmac, hashlib
 
-class talkBankGate():
-    def __init__(self):
-        self.baseUrl = "https://baas-staging.talkbank.io" # test server
-        #self.baseUrl = "https://baas.talkbank.io" # battle server
-
-        self.clientID = "CLIENT_ID"
-        self.partnerID = "PARTNER_ID"
-        self.partnerToken = "PARTNER_TOKEN"
+class talkBankClient():
+    def __init__(self, baseUrl, partnerId, partnerToken):
+        self.baseUrl = baseUrl
+        self.partnerId = partnerId
+        self.partnerToken = partnerToken
 
         self.apiDict = {
             "getBalance": "/api/v1/balance",
             "getHistory": "/api/v1/transactions",
-            "getPaymentPage": "/api/v1/charge/" + self.clientID + "/unregistered/card/with/form",
-            "getPaymentStatus": "/api/v1/payment/"
+            "getPaymentPage": "/api/v1/charge/%CLIENT_ID%/unregistered/card/with/form",
+            "getPaymentStatus": "/api/v1/payment/",
+            "itelierCreateOrder": "/api/v1/marketplace/itelier/order",
+            "itelierCreateAtelier": "/api/v1/marketplace/itelier/atelier"
         }
 
     def getHashSHA256(self, data):
@@ -67,7 +66,7 @@ class talkBankGate():
         resultString = '\n'.join(resultList)
 
         signature = self.create_sha256_signature(resultString)
-        return ("TB1-HMAC-SHA256 %s:%s" % (self.partnerID, signature), hashBody, dateTime)
+        return ("TB1-HMAC-SHA256 %s:%s" % (self.partnerId, signature), hashBody, dateTime)
 
     def getBalance(self):
         auth, hashBody, dateTime = self.createAuthorizationField("GET", self.apiDict.get("getBalance"), "")
@@ -83,11 +82,11 @@ class talkBankGate():
         )
         return response.json()
 
-    def getPaymentPage(self, amount: int, txID): # amount in 1/100 of Ruble
+    def getPaymentPage(self, clientId, amount: int, txID): # amount in 1/100 of Ruble
         body = {"amount": int(amount), "redirect_url": "http://example.com", "order_slug": txID}
-        print(self.baseUrl + self.apiDict.get("getPaymentPage"))
-        auth, hashBody, dateTime = self.createAuthorizationField("POST", self.apiDict.get("getPaymentPage"), json.dumps(body))
-        response = requests.post(self.baseUrl + self.apiDict.get("getPaymentPage"),
+        uri = self.apiDict.get("getPaymentPage").replace("%CLIENT_ID%", clientId)
+        auth, hashBody, dateTime = self.createAuthorizationField("POST", uri, json.dumps(body))
+        response = requests.post(self.baseUrl + uri,
             json=body,
             headers={'Content-Type': 'application/json', 'TB-Content-SHA256': hashBody, 'Date': dateTime, 'Authorization': auth}
         )
@@ -100,8 +99,35 @@ class talkBankGate():
         )
         return response.json()
 
-if __name__ == '__main__':
-    tbg = talkBankGate()
-    print(tbg.getBalance())
-    print(tbg.getPaymentPage(100, "uniqueTransactionIdForSearch")) # ID can using once!
-    print(tbg.getPaymentStatus("uniqueTransactionIdForSearch"))
+    def itelierCreateOrder(self, atelierId, atelierName, atelierBranchId, atelierBranchAddress, clientId, clientName, transactionId, transactionDetails):
+        data = {
+            "atelier_id": atelierId,
+            "atelier_name": atelierName,
+            "atelier_branch_id": atelierBranchId,
+            "atelier_branch_address": atelierBranchAddress,
+            "client_id": clientId,
+            "client_name": clientName,
+            "transaction_id": transactionId,
+            "transaction_details": transactionDetails
+        }
+        uri = self.apiDict.get("itelierCreateOrder")
+        auth, hashBody, dateTime = self.createAuthorizationField("POST", uri, json.dumps(data))
+        response = requests.post(self.baseUrl + uri,
+            json=data,
+            headers={'Content-Type': 'application/json', 'TB-Content-SHA256': hashBody, 'Date': dateTime, 'Authorization': auth}
+        )
+        return response.json()
+
+    def itelierCreateAtelier(self, atelierId, atelierName, atelierDetails):
+        data = {
+            "atelier_id": atelierId,
+            "atelier_name": atelierName,
+            "atelier_details": atelierDetails
+        }
+        uri = self.apiDict.get("itelierCreateAtelier")
+        auth, hashBody, dateTime = self.createAuthorizationField("POST", uri, json.dumps(data))
+        response = requests.post(self.baseUrl + uri,
+            json=data,
+            headers={'Content-Type': 'application/json', 'TB-Content-SHA256': hashBody, 'Date': dateTime, 'Authorization': auth}
+        )
+        return response.json()
