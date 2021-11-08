@@ -99,12 +99,9 @@ class talkBankClient():
         )
         return response.json()
 
-    def itelierCreateOrder(self, atelierId, atelierName, atelierBranchId, atelierBranchAddress, clientId, clientName, transactionId, transactionDetails):
+    def itelierCreateOrder(self, atelierId, clientId, clientName, transactionId, transactionDetails):
         data = {
             "atelier_id": atelierId,
-            "atelier_name": atelierName,
-            "atelier_branch_id": atelierBranchId,
-            "atelier_branch_address": atelierBranchAddress,
             "client_id": clientId,
             "client_name": clientName,
             "transaction_id": transactionId,
